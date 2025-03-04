@@ -1,0 +1,27 @@
+name: 清理工作流历史
+on:
+  schedule:
+    # 每月1号UTC时间0点自动执行（北京时间8点）
+    - cron: '0 0 1 * *'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write  # 必须授予工作流删除权限
+      contents: read  # 基础仓库读取权限
+
+    steps:
+    - name: 删除工作流记录
+      uses: Mattraks/delete-workflow-runs@v2
+      with:
+        # 安全增强配置👇
+        token: ${{ secrets.GITHUB_TOKEN }}  # 优先使用自动生成的token
+        repository: ${{ github.repository }}
+        retain_days: 0       # 保留0天前的记录（删除全部）
+        keep_minimum_runs: 0 # 不保留任何记录
+        workflow_name: 'all' # 明确指定清理范围
+        # 可选过滤参数👇
+        # branch: 'main'      # 只清理特定分支
+        # actor: 'github-actions[bot]' # 按触发者过滤
