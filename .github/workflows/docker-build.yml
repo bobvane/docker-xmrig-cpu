@@ -1,53 +1,67 @@
-# .github/workflows/docker-build.yml
 name: Docker Image CI
 
 on:
   schedule:
-    # 每月1号凌晨2点自动触发 (UTC时间)
     - cron: '0 2 1 * *'
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch:
 
 env:
-  DOCKERHUB_REPO: your-dockerhub-username/xmrig-cpu  # 替换为你的Docker Hub仓库名
+  DOCKERHUB_REPO: your-dockerhub-username/xmrig-cpu
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      actions: write  # 新增缓存操作权限
 
     steps:
-    # 步骤1：检出代码仓库
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 步骤2：获取最新XMRig版本号
+    # 新增 Buildx 初始化步骤
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        driver-opts: |
+          image=moby/buildkit:master
+        buildkitd-config: |
+          [registry."docker.io"]
+            mirrors = ["mirror.gcr.io"]
+        install: true
+
     - name: Fetch latest version
       id: version
       run: |
         LATEST_VERSION=$(curl -sSL https://api.github.com/repos/xmrig/xmrig/releases/latest | jq -r '.tag_name | ltrimstr("v")')
-        echo "最新检测版本: $LATEST_VERSION"
         echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
 
-    # 步骤3：登录Docker Hub
     - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    # 步骤4：构建并推送镜像
     - name: Build and push
       uses: docker/build-push-action@v5
+      env:
+        BUILDKIT_PROGRESS: plain  # 开启详细日志
       with:
         context: .
-        platforms: linux/amd64,linux/arm64  # 多架构支持
+        platforms: linux/amd64,linux/arm64
         push: true
         tags: |
           ${{ env.DOCKERHUB_REPO }}:latest
           ${{ env.DOCKERHUB_REPO }}:${{ steps.version.outputs.version }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        # 修复缓存配置
+        cache-from: |
+          type=gha,scope=${{ github.ref }}-${{ github.workflow }}
+          type=registry,ref=${{ env.DOCKERHUB_REPO }}:buildcache
+        cache-to: |
+          type=gha,mode=max,scope=${{ github.ref }}-${{ github.workflow }}
+          type=registry,ref=${{ env.DOCKERHUB_REPO }}:buildcache,mode=max
 
-    # 步骤5：发送通知（可选）
     - name: Send success notification
       if: success()
       uses: actions/github-script@v6
@@ -57,5 +71,5 @@ jobs:
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: "✅ 成功构建并推送镜像：\n- 版本: ${{ steps.version.outputs.version }}\n- 镜像地址: https://hub.docker.com/r/${{ env.DOCKERHUB_REPO }}"
+            body: "✅ 镜像构建成功！\n- 版本: ${{ steps.version.outputs.version }}\n- 多架构支持: amd64/arm64"
           })
