@@ -1,5 +1,10 @@
 name: Docker镜像构建
 
+on:
+  schedule:
+    - cron: '0 3 * * *' # 每天UTC时间3点运行
+
+
 env: # 全局环境变量
   IMAGE_NAME: my-xmrig
   DOCKERHUB_USER: your-docker-id
@@ -22,8 +27,8 @@ jobs:
     - name: 构建并推送镜像
       uses: docker/build-push-action@v5
       with:
-        context: .
+        context: 。
         push: true
-        tags: |
+        标签: |
           ${{ env.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:latest
           ${{ env.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
