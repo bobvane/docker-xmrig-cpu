@@ -1,51 +1,61 @@
-name: Docker镜像构建
+# .github/workflows/docker-build.yml
+name: Docker Image CI
 
 on:
-  push:
-    branches: [ "main" ]    # main分支推送时触发
-    tags: [ "v*.*.*" ]      # 标签推送时触发（如v1.2.3）
-  workflow_dispatch:        # 允许手动触发
+  schedule:
+    # 每月1号凌晨2点自动触发 (UTC时间)
+    - cron: '0 2 1 * *'
+  workflow_dispatch: # 允许手动触发
 
 env:
-  DOCKERHUB_USER: your-docker-id   # 改为你的Docker Hub ID
-  IMAGE_NAME: xmrig-cpu-miner
+  DOCKERHUB_REPO: your-dockerhub-username/xmrig-cpu  # 替换为你的Docker Hub仓库名
 
 jobs:
-  build-push:
+  build-and-push:
     runs-on: ubuntu-latest
+
     steps:
-      # ----------------------------
-      # 步骤1：检出代码
-      # ----------------------------
-      - name: 检出仓库
-        uses: actions/checkout@v4
+    # 步骤1：检出代码仓库
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      # ----------------------------
-      # 步骤2：登录Docker Hub
-      # ----------------------------
-      - name: Docker登录
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+    # 步骤2：获取最新XMRig版本号
+    - name: Fetch latest version
+      id: version
+      run: |
+        LATEST_VERSION=$(curl -sSL https://api.github.com/repos/xmrig/xmrig/releases/latest | jq -r '.tag_name | ltrimstr("v")')
+        echo "最新检测版本: $LATEST_VERSION"
+        echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
 
-      # ----------------------------
-      # 步骤3：构建并推送镜像
-      # ----------------------------
-      - name: 构建推送
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64  # 多架构支持
-          push: ${{ github.event_name != 'pull_request' }} # PR时不推送
-          tags: |
-            ${{ env.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+    # 步骤3：登录Docker Hub
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # ----------------------------
-      # 步骤4：验证镜像（可选）
-      # ----------------------------
-      - name: 运行测试
-        run: |
-          docker run --rm ${{ env.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }} --version
+    # 步骤4：构建并推送镜像
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64  # 多架构支持
+        push: true
+        tags: |
+          ${{ env.DOCKERHUB_REPO }}:latest
+          ${{ env.DOCKERHUB_REPO }}:${{ steps.version.outputs.version }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # 步骤5：发送通知（可选）
+    - name: Send success notification
+      if: success()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: "✅ 成功构建并推送镜像：\n- 版本: ${{ steps.version.outputs.version }}\n- 镜像地址: https://hub.docker.com/r/${{ env.DOCKERHUB_REPO }}"
+          })
