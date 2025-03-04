@@ -29,7 +29,7 @@ jobs:
         buildkitd-config: |
           [registry."docker.io"]
             # 验证可用的镜像加速源（三选一）
-            mirrors = ["docker.mirrors.ustc.edu.cn"]  # 中科大镜像
+            mirrors = ["mirror.gcr.io"]  # 中科大镜像
             # mirrors = ["registry-1.docker.cn"]      # 阿里云镜像
             # mirrors = ["hub-mirror.c.163.com"]      # 网易镜像
         install: true
