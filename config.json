@@ -1,12 +1,114 @@
-// config.json
 {
-  "api": {
-    "id": null,
-    "worker-id": null
-  },
-  "http": {
-    "enabled": false,
-    "host": "127.0.0.1",
-    "port": 0
-  }
+    // ========================
+    // API监控配置
+    // ========================
+    "api": {
+        "id": null,         // API实例ID（多矿机时需要唯一标识）
+        "worker-id": null   // 矿工显示名称（如：Nas-CPU）
+    },
+
+    // ========================
+    // HTTP远程控制配置
+    // ========================
+    "http": {
+        "enabled": false,    // 是否启用HTTP接口（生产环境建议关闭）
+        "host": "127.0.0.1", // 监听IP（0.0.0.0允许外部访问）
+        "port": 0,           // 端口号（启用时建议设为8080等非0值）
+        "access-token": null, // 访问令牌（启用HTTP时必须设置）
+        "restricted": true    // 是否限制API敏感操作
+    },
+
+    // ========================
+    // 基础运行配置
+    // ========================
+    "autosave": true,     // 自动保存配置变更
+    "background": false,  // 是否后台运行（Docker中保持false）
+    "colors": true,       // 控制台彩色输出
+    "title": true,        // 显示终端标题栏统计信息
+
+    // ========================
+    // RandomX算法优化配置
+    // ========================
+    "randomx": {
+        "init": -1,       // 初始化线程数（-1=自动）
+        "init-avx2": -1,  // AVX2指令集初始化线程数
+        "mode": "auto",   // 内存模式（auto/fast/light）
+        "1gb-pages": false, // 使用1GB大页内存（需系统支持）
+        "rdmsr": true,    // 允许读取CPU寄存器（提升性能）
+        "wrmsr": false,   // 禁止写入CPU寄存器（避免系统不稳定）
+        "cache_qos": false, // 缓存QoS优化（仅Linux有效）
+        "numa": true,     // NUMA内存分配优化
+        "scratchpad_prefetch_mode": 1  // 预取模式（0关闭，1保守，2激进）
+    },
+
+    // ========================
+    // CPU核心配置
+    // ========================
+    "cpu": {
+        "enabled": true,     // 启用CPU挖矿
+        "huge-pages": true,  // 使用大页内存（提升10-15%性能）
+        "huge-pages-jit": false, // JIT模式下使用大页内存（可能不稳定）
+        "hw-aes": null,      // 自动检测AES-NI指令集支持
+        "priority": 5,       // 进程优先级（0最低，5正常）
+        "memory-pool": false, // 内存池分配（建议关闭）
+        "yield": true,       // 空闲时释放CPU资源
+        "asm": true,         // 启用汇编优化（显著提升性能）
+        "argon2-impl": null, // Argon2算法实现选择（null=自动）
+        
+        // 各算法线程分配配置
+        // 格式说明：[线程数, 关联的CPU核心编号]
+        "argon2": [0, 2, 4, 6, 5, 7], // Argon2算法核心分配
+        "cn": [                      // CryptoNight算法
+            [1, 0], [1, 2], [1, 4]
+        ],
+        "cn-heavy": [                // CryptoNight-Heavy
+            [1, 0], [1, 2]
+        ],
+        "cn-lite": [                 // CryptoNight-Lite
+            [1, 0], [1, 2], [1, 4], [1, 6], [1, 5], [1, 7]
+        ],
+        "cn-pico": [                 // CryptoNight-Pico
+            [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]
+        ],
+        "rx": [0, 2, 4],             // RandomX算法核心分配
+        "rx/wow": [0, 2, 4, 6, 5, 7] // Wownero算法的RandomX变种
+    },
+
+    // ========================
+    // 矿池连接配置（关键！）
+    // ========================
+    "pools": [
+        {
+            "algo": "rx/0",          // 算法类型（RandomX）
+            "coin": "XMR",           // 挖矿产出的币种（门罗币）
+            "url": "stratum+ssl://us.monero.herominers.com:1111",  // SSL加密矿池地址
+            "user": "45t61HR6JGoXb9knXeCAGaUSxGhdJQjh4Td5LoopvvFwUQZbGSTDzXQSwmyXzDTkfDb46ex6gXPoN4rrfyjKSVenRbhH7kV.NasCPU", // 替换为你的XMR钱包地址
+            "pass": "x",             // 矿工密码（一般保持x）
+            "rig-id": null,          // 矿机标识（覆盖worker-id）
+            "nicehash": false,       // 是否使用NiceHash模式
+            "keepalive": true,       // 保持长连接（推荐开启）
+            "enabled": true,         // 启用该矿池
+            "tls": true,             // 强制启用SSL加密（必须与url中的stratum+ssl对应）
+            "sni": false,            // SNI扩展（部分矿池需要开启）
+            "daemon": false          // 是否连接本地守护进程
+            "socks5": "192.168.2.5:1081",     // 根据实际代理服务器修改
+        }
+    ],
+
+    // ========================
+    // 网络与重试配置
+    // ========================
+    "retries": 5,            // 连接失败重试次数
+    "retry-pause": 5,        // 重试间隔（秒）
+    "dns": {
+        "ipv6": false,       // 禁用IPv6解析
+        "ttl": 30            // DNS缓存时间（秒）
+    },
+
+    // ========================
+    // 其他高级配置
+    // ========================
+    "print-time": 60,        // 统计信息打印间隔（秒）
+    "verbose": 0,            // 日志详细级别（0-3）
+    "watch": true            // 监控配置文件变化自动重载
 }
