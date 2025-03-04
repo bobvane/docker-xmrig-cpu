@@ -1,5 +1,12 @@
 name: Docker镜像构建
 
+- name: 缓存Docker层
+  uses: actions/cache@v3
+  with:
+    path: /tmp/.buildx-cache
+    key: ${{ runner.os }}-buildx-${{ hashFiles('**/Dockerfile') }}
+
+
 on:
   schedule:
     - cron: '0 3 * * *' # 每天UTC时间3点运行
@@ -32,3 +39,15 @@ jobs:
         标签: |
           ${{ env.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:latest
           ${{ env.DOCKERHUB_USER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+- name: 发送邮件通知
+  if: failure() # 仅在失败时发送
+  uses: dawidd6/action-send-mail@v3
+  with:
+    server_address: smtp.gmail.com
+    server_port: 587
+    username: ${{ secrets.EMAIL_USER }}
+    password: ${{ secrets.EMAIL_PASSWORD }}
+    到: your-email@example.com
+    subject: "构建失败: ${{ github.workflow }}"
+
